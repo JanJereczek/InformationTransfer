@@ -140,7 +140,7 @@ function bootstrapped_lianginfo_transfer(X::Matrix, dt::Real,
     # Perform bootstrapping
     indices = axes(T, 2)
     for l in 1:n_bootstrap
-        indices_bootstrap = randomchoice(indices, N, replace = true)
+        indices_bootstrap = shuffle(indices)
         X_bootstrap = X[:, indices_bootstrap]
         dXdt_bootstrap = dXdt[:, indices_bootstrap]
         T_, tau_, R_ = lianginfo_transfer(X_bootstrap, dXdt_bootstrap, dt)
