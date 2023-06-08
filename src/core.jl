@@ -1,4 +1,5 @@
 using Statistics, LinearAlgebra, Random, TimeseriesSurrogates
+using .Threads
 
 """
 
@@ -142,9 +143,8 @@ function bootstrapped_lianginfo_transfer(X::Matrix, dt::Real,
     R_bootstrap = zeros(size(R)..., n_bootstrap)
 
     # Perform bootstrapping
-    # TODO: thread the bootstrap and potentially replace by surrogate approach
     sgen = [surrogenerator(X[i, :], RandomFourier(), Xoshiro(123)) for i in 1:nvar]
-    @inbounds for l in 1:n_bootstrap
+    @threads for l in 1:n_bootstrap
         X_bootstrap = Matrix(hcat([sgen[i]() for i in 1:nvar]...)')
         dXdt_bootstrap = forward_euler(X_bootstrap, k_euler, dt)
         T_, tau_, R_ = lianginfo_transfer(X_bootstrap, dXdt_bootstrap, dt)
@@ -152,17 +152,6 @@ function bootstrapped_lianginfo_transfer(X::Matrix, dt::Real,
         tau_bootstrap[:, :, l] .= tau_
         R_bootstrap[:, :, l] .= R_
     end
-
-    # indices = axes(T, 2)
-    # @inbounds for l in 1:n_bootstrap
-    #     indices_bootstrap = shuffle(indices)
-    #     X_bootstrap = X[:, indices_bootstrap]
-    #     dXdt_bootstrap = dXdt[:, indices_bootstrap]
-    #     T_, tau_, R_ = lianginfo_transfer(X_bootstrap, dXdt_bootstrap, dt)
-    #     T_bootstrap[:, :, l] .= T_
-    #     tau_bootstrap[:, :, l] .= tau_
-    #     R_bootstrap[:, :, l] .= R_
-    # end
 
     # Compute sampled standard-deviation
     error_T = std(T_bootstrap, dims = 3)[:, :, 1]
