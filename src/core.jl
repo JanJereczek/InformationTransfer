@@ -1,16 +1,16 @@
-using Statistics, LinearAlgebra, Random
+using Statistics, LinearAlgebra, Random, TimeseriesSurrogates
 
 """
 
     forward_euler(X::Matrix{T}, k::Int, dt::Real)
 
-Forward-Euler differentiation with spacing `k` and assuming that `X` has dimension `nvar x nt`.
+Forward-Euler differentiation with spacing `k` and assuming that `X` has dimension
+`nvar x nt`.
 """
 function forward_euler(X::Matrix{T}, k::Int, dt::Real) where {T<:Real}
     nvar, nt = size(X)
     dXdt = zeros(T, nvar, nt)
-    dXdt[:, 1:nt-k] = (view(X, :, k:nt) -
-        view(X, :, 1:nt-k)) / (k * dt)
+    dXdt[:, 1:nt-k] .= lagged_difference(X, k, dt, nt)
     return dXdt
 end
 
@@ -18,14 +18,18 @@ end
 
     backward_euler(X::Matrix{T}, k::Int, dt::Real)
 
-Backward-Euler differentiation with spacing `k` and assuming that `X` has dimension `nvar x nt`.
+Backward-Euler differentiation with spacing `k` and assuming that `X` has dimension
+`nvar x nt`.
 """
 function backward_euler(X::Matrix{T}, k::Int, dt::Real) where {T<:Real}
     nvar, nt = size(X)
     dXdt = zeros(T, nvar, nt)
-    dXdt[:, k:nt] = (view(X, :, k:nt) -
-        view(X, :, 1:nt-k)) / (k * dt)
+    dXdt[:, k:nt] .= lagged_difference(X, k, dt, nt)
     return dXdt
+end
+
+function lagged_difference(X::Matrix, k::Int, dt::Real, nt::Int)
+    return (view(X, :, k+1:nt) - view(X, :, 1:nt-k)) / (k * dt)
 end
 
 """
@@ -57,7 +61,7 @@ Compute the (j,i)-entry of the normalized information-transfer matrix as defined
 function liang_normindex(detC::Real, Delta_ik::Vector, C_kdi::Vector,
     T_all::Vector, T_ii::Real, g_ii::Real, C_ii::Real, T_ji::Real)
         # self-contribution (eq. 15)
-        selfcontrib = (1 / detC) * sum(Delta_ik * C_kdi)
+        selfcontrib = (1 / detC) * sum(Delta_ik .* C_kdi)
         # all other transfers contribution (eq. 20)
         transfer = sum(abs.(T_all)) - abs(T_ii)
         # noise contribution
@@ -78,8 +82,8 @@ function lianginfo_transfer(X::Matrix, dXdt::Matrix, dt::Real)
     nvar, nt = size(X)
 
     # Compute covariance matrices and related quantities
-    C = cov(X, X)
-    dC = cov(X, dXdt)
+    C = cov(X', X')
+    dC = cov(X', dXdt')
     detC = det(C)
     invC = inv(C)
     Delta = Matrix(invC' .* detC)
@@ -89,18 +93,18 @@ function lianginfo_transfer(X::Matrix, dXdt::Matrix, dt::Real)
     R = copy(T)
     @inbounds for i in 1:nvar, j in 1:nvar
         T[j, i] = liang_index(detC, Delta[j,:], dC[:,i], C[i,j], C[i,i])
-        R[j, i] = C[i,j] / sqrt(C[i,i] * C[i,j])
+        R[j, i] = C[i,j] / sqrt(C[i,i] * C[j,j])
     end
 
     # Compute noise terms for normalized information transfer
     g = zeros(nvar)
     @inbounds for i in eachindex(g)
         a1k = invC * dC[:,i]
-        f1 = mean(dx[i,:])
+        f1 = mean(dXdt[i,:])
         @inbounds for k in eachindex(a1k)
             f1 -= a1k[k] * mean(X[k,:])
         end
-        R1 = dx[i,:] .- f1
+        R1 = dXdt[i,:] .- f1
         @inbounds for k in eachindex(a1k)
             R1 .-= a1k[k] .* X[k, :]
         end
@@ -138,21 +142,32 @@ function bootstrapped_lianginfo_transfer(X::Matrix, dt::Real,
     R_bootstrap = zeros(size(R)..., n_bootstrap)
 
     # Perform bootstrapping
-    indices = axes(T, 2)
-    for l in 1:n_bootstrap
-        indices_bootstrap = shuffle(indices)
-        X_bootstrap = X[:, indices_bootstrap]
-        dXdt_bootstrap = dXdt[:, indices_bootstrap]
+    # TODO: thread the bootstrap and potentially replace by surrogate approach
+    sgen = [surrogenerator(X[i, :], RandomFourier(), Xoshiro(123)) for i in 1:nvar]
+    @inbounds for l in 1:n_bootstrap
+        X_bootstrap = Matrix(hcat([sgen[i]() for i in 1:nvar]...)')
+        dXdt_bootstrap = forward_euler(X_bootstrap, k_euler, dt)
         T_, tau_, R_ = lianginfo_transfer(X_bootstrap, dXdt_bootstrap, dt)
         T_bootstrap[:, :, l] .= T_
         tau_bootstrap[:, :, l] .= tau_
         R_bootstrap[:, :, l] .= R_
     end
 
+    # indices = axes(T, 2)
+    # @inbounds for l in 1:n_bootstrap
+    #     indices_bootstrap = shuffle(indices)
+    #     X_bootstrap = X[:, indices_bootstrap]
+    #     dXdt_bootstrap = dXdt[:, indices_bootstrap]
+    #     T_, tau_, R_ = lianginfo_transfer(X_bootstrap, dXdt_bootstrap, dt)
+    #     T_bootstrap[:, :, l] .= T_
+    #     tau_bootstrap[:, :, l] .= tau_
+    #     R_bootstrap[:, :, l] .= R_
+    # end
+
     # Compute sampled standard-deviation
-    error_T = std(T_bootstrap, dims = 3)
-    error_tau = std(tau_bootstrap, dims = 3)
-    error_R = std(R_bootstrap, dims = 3)
+    error_T = std(T_bootstrap, dims = 3)[:, :, 1]
+    error_tau = std(tau_bootstrap, dims = 3)[:, :, 1]
+    error_R = std(R_bootstrap, dims = 3)[:, :, 1]
 
     return T, tau, R, error_T, error_tau, error_R
 end
