@@ -1,5 +1,7 @@
 # InformationTransfer
 
+## Reproducibility
+
 This code base is using the [Julia Language](https://julialang.org/) and
 [DrWatson](https://juliadynamics.github.io/DrWatson.jl/stable/)
 to make a reproducible scientific project named
@@ -22,9 +24,11 @@ To (locally) reproduce this project, do the following:
 This will install all necessary packages for you to be able to run the scripts and
 everything should work out of the box, including correctly finding local paths.
 
-You may notice that most scripts start with the commands:
-```julia
-using DrWatson
-@quickactivate "InformationTransfer"
-```
-which auto-activate the project and enable local path handling from DrWatson.
+## Information transfer
+
+The relative information transfer allows to determine causal links between variables in multi-dimensional time series. It allows to make quantitative statements, as it returns a value between -100 and 100%.
+
+Following observational products are used in this repository:
+ - [IMBIE data used in IPCC AR6](https://ramadda.data.bas.ac.uk/repository/entry/show?entryid=77b64c55-7166-4a06-9def-2e400398e452)
+ - [ENSO-3.4 index from NOAA](https://psl.noaa.gov/data/timeseries/monthly/NINO34/)
+ - [SAM index from NOAA](https://www.cpc.ncep.noaa.gov/products/precip/CWlink/daily_ao_index/aao/aao.shtml)
