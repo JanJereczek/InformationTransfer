@@ -1,6 +1,15 @@
 using Statistics, LinearAlgebra, Random, TimeseriesSurrogates
 using .Threads
 
+struct InformationTransfer
+    T::Matrix
+    tau::Matrix
+    R::Matrix
+    error_T::Matrix
+    error_tau::Matrix
+    error_R::Matrix
+end
+
 """
 
     forward_euler(X::Matrix{T}, k::Int, dt::Real)
@@ -131,6 +140,8 @@ Perform bootstrapping over [lianginfo_transfer](@ref).
 function bootstrapped_lianginfo_transfer(X::Matrix, dt::Real,
     n_bootstrap::Int; k_euler::Int = 1)
 
+    nvar, nt = size(X)
+
     # Compute time derivative of states
     dXdt = forward_euler(X, k_euler, dt)
 
@@ -158,5 +169,5 @@ function bootstrapped_lianginfo_transfer(X::Matrix, dt::Real,
     error_tau = std(tau_bootstrap, dims = 3)[:, :, 1]
     error_R = std(R_bootstrap, dims = 3)[:, :, 1]
 
-    return T, tau, R, error_T, error_tau, error_R
+    return InformationTransfer(T, tau, R, error_T, error_tau, error_R)
 end

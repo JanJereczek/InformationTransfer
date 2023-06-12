@@ -1,4 +1,5 @@
 include("intro.jl")
+include(srcdir("plotting.jl"))
 using DelimitedFiles
 using CairoMakie
 
@@ -14,12 +15,13 @@ enso_full = readdlm(datadir("exp_raw/enso34_index.csv"), ',')
 
 i1_sam = findfirst(sam_full[:, 1] .>= first(yr))
 i1_enso = findfirst(enso_full[:, 1] .>= first(yr))
+i2_sam = findfirst(sam_full[:, 1] .>= last(yr)) - 1
+i2_enso = findfirst(enso_full[:, 1] .>= last(yr)) - 1
 
-sam = sam_full[i1_sam:end, :]
-enso = enso_full[i1_enso:end, :]
-t_indices = first(yr):1/12:round(last(yr))
-sam_vec = vcat([sam[i, 2:end] for i in axes(sam, 1)]...)[eachindex(t_indices)]
-enso_vec = vcat([enso[i, 2:end] for i in axes(enso, 1)]...)[eachindex(t_indices)]
+sam = sam_full[i1_sam:i2_sam, :]
+enso = enso_full[i1_enso:i2_enso, :]
+sam_vec = vcat([sam[i, 2:end] for i in axes(sam, 1)]...)[eachindex(yr)]
+enso_vec = vcat([enso[i, 2:end] for i in axes(enso, 1)]...)[eachindex(yr)]
 
 ft = 30
 lw = 5
@@ -66,8 +68,24 @@ lines!(axs[1], yr, mb, color = :gray10, linewidth = lw)
 band!(axs[2], yr, cmb-cmb_sigma, cmb+cmb_sigma)
 lines!(axs[2], yr, cmb, color = :gray10, linewidth = lw)
 
-barplot!(axs[3], t_indices, enso_vec, color = enso_vec, colormap = :balance)
-barplot!(axs[4], t_indices, sam_vec, color = sam_vec, colormap = :balance)
+barplot!(axs[3], yr, enso_vec, color = enso_vec, colormap = :balance)
+barplot!(axs[4], yr, sam_vec, color = sam_vec, colormap = :balance)
 
 save(plotsdir("wais_sam_enso.png"), fig)
 save(plotsdir("wais_sam_enso.pdf"), fig)
+
+
+dt = mean( diff(yr) )
+X = Matrix(hcat(mb, sam_vec, enso_vec)')
+n_bootstrap = 1000
+dXdt = forward_euler(X, 1, dt)
+
+infotransfer = bootstrapped_lianginfo_transfer(X, dt, n_bootstrap)
+
+opts = (fontsize = 30, thin_lw = 2, thick_lw = 5)
+fig = Figure(resolution = (800, 800), fontsize = opts.fontsize)
+ax = Axis(fig[1,1])
+vars = [L"$\dot{m}$", L"$i_\mathrm{SAM}$", L"$i_\mathrm{ENSO}$"]
+plot_infotransfer!(ax, infotransfer.tau, infotransfer.error_tau, vars, opts)
+# Colorbar(fig[1, 2], hmap; label = "values", width = 15, ticksize = 15)
+fig
