@@ -1,6 +1,12 @@
 using Statistics, LinearAlgebra, Random, TimeseriesSurrogates
 using .Threads
 
+"""
+
+    InformationTransfer
+
+Return a struct containing the results of an information transfer analysis.
+"""
 struct InformationTransfer
     T::Matrix
     tau::Matrix

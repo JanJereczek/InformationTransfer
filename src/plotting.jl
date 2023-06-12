@@ -1,12 +1,47 @@
 using CairoMakie
 
+"""
+
+    rectangle(i, j)
+
+Return a `Point2f` containing the vertices of the bounding box for the text at
+`(i, j)` of the heatmap.
+"""
 function rectangle(i::Int, j::Int)
     return Point2f[(i-0.4, j-0.4), (i-0.4, j+0.4), (i+0.4, j+0.4), (i+0.4, j-0.4)]
 end
 
+"""
+
+    plot_infotransfer!(ax, M, S, vars, opts)
+
+Plot onto `ax` the annotated heatmap of `M::Matrix` = a statistical metric.
+Add bounding box if a value is significant given the standard-deviation `S::Matrix`.
+Annotate axes with `vars` and set plotting options through `opts::NamedTuple`.
+"""
 function plot_infotransfer!(ax, M::Matrix, S::Matrix, vars::Vector, opts::NamedTuple;
     metric::String = "Normalized information transfer")
-    heatmap!(ax, M, colormap = :balance, colorrange = (-100, 100))
+
+    n1, n2 = size(M)
+    m1, m2 = size(S)
+    if n1 != n2
+        error("M must be a square matrix.")
+    elseif (n1 != m1) || (n2 != m2)
+        error("S must have same dimensions as M.")
+    elseif length(vars) != n1
+        error("Labels contained in vars must have same length as M.")
+    end
+
+    if metric == "Normalized information transfer"
+        crange = (-100, 100)
+    elseif metric == "Pearson's correlation coefficient"
+        crange = (-1, 1)
+    else
+        error("The chosen metric must be either the normalized information" *
+            "transfer or Pearson's correlation coefficient")
+    end
+    heatmap!(ax, M, colormap = :balance, colorrange = crange)
+
     for idx in CartesianIndices(M)
         i, j = Tuple(idx)
         txtcolor = abs(M[i, j]) < 25.0 ? :black : :white

@@ -71,8 +71,8 @@ lines!(axs[2], yr, cmb, color = :gray10, linewidth = lw)
 barplot!(axs[3], yr, enso_vec, color = enso_vec, colormap = :balance)
 barplot!(axs[4], yr, sam_vec, color = sam_vec, colormap = :balance)
 
-save(plotsdir("wais_sam_enso.png"), fig)
-save(plotsdir("wais_sam_enso.pdf"), fig)
+save(plotsdir("WES.png"), fig)
+save(plotsdir("WES.pdf"), fig)
 
 
 dt = mean( diff(yr) )
