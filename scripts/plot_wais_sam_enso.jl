@@ -87,5 +87,7 @@ fig = Figure(resolution = (800, 800), fontsize = opts.fontsize)
 ax = Axis(fig[1,1])
 vars = [L"$\dot{m}$", L"$i_\mathrm{SAM}$", L"$i_\mathrm{ENSO}$"]
 plot_infotransfer!(ax, infotransfer.tau, infotransfer.error_tau, vars, opts)
-# Colorbar(fig[1, 2], hmap; label = "values", width = 15, ticksize = 15)
-fig
+
+# Introudce accronym WES (WAIS-ENSO-SAM)
+save(plotsdir("infotransfer_WES.png"), fig)
+save(plotsdir("infotransfer_WES.pdf"), fig)

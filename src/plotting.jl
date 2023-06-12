@@ -6,10 +6,10 @@ end
 
 function plot_infotransfer!(ax, M::Matrix, S::Matrix, vars::Vector, opts::NamedTuple;
     metric::String = "Normalized information transfer")
-    heatmap!(ax, M, colormap = :balance)
+    heatmap!(ax, M, colormap = :balance, colorrange = (-100, 100))
     for idx in CartesianIndices(M)
         i, j = Tuple(idx)
-        txtcolor = abs(M[i, j]) < 0.25 ? :black : :white
+        txtcolor = abs(M[i, j]) < 25.0 ? :black : :white
         text!(ax, L"%$(round(M[i,j], digits = 2)) $\,$", position = (i, j), color = txtcolor,
             align = (:center, :center), fontsize = opts.fontsize)
         
@@ -28,4 +28,6 @@ function plot_infotransfer!(ax, M::Matrix, S::Matrix, vars::Vector, opts::NamedT
     ax.yticks = ticks
     ax.xticklabelrotation = π / 4
     ax.xticklabelalign = (:right, :center)
+
+    ax.yreversed = true
 end
