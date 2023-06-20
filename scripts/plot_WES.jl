@@ -78,7 +78,7 @@ save(plotsdir("WES.pdf"), fig)
 dt = mean( diff(yr) )
 X = Matrix(hcat(mb, sam_vec, enso_vec)')
 n_bootstrap = 1000
-dXdt = forward_euler(X, 1, dt)
+dXdt = forward_euler(X, yr, 1)
 
 infotransfer = bootstrapped_lianginfo_transfer(X, dt, n_bootstrap)
 

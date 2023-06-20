@@ -23,10 +23,9 @@ end
 Forward-Euler differentiation with spacing `k` and assuming that `X` has dimension
 `nvar x nt`.
 """
-function forward_euler(X::Matrix{T}, k::Int, dt::Real) where {T<:Real}
-    nvar, nt = size(X)
-    dXdt = zeros(T, nvar, nt)
-    dXdt[:, 1:nt-k] .= lagged_difference(X, k, dt, nt)
+function forward_euler(X::Matrix, t::Vector, k::Int)
+    nt, dXdt, T = init_euler_diff(X, t)
+    dXdt[:, 1:nt-k] .= lagged_difference(X, k, nt) ./ lagged_difference(T, k, nt)
     return dXdt
 end
 
@@ -37,15 +36,24 @@ end
 Backward-Euler differentiation with spacing `k` and assuming that `X` has dimension
 `nvar x nt`.
 """
-function backward_euler(X::Matrix{T}, k::Int, dt::Real) where {T<:Real}
-    nvar, nt = size(X)
-    dXdt = zeros(T, nvar, nt)
-    dXdt[:, k:nt] .= lagged_difference(X, k, dt, nt)
+function backward_euler(X::Matrix, t::Vector, k::Int)
+    nt, dXdt, T = init_euler_diff(X, t)
+    dXdt[:, k:nt] .= lagged_difference(X, k, nt) ./ lagged_difference(T, k, nt)
     return dXdt
 end
 
-function lagged_difference(X::Matrix, k::Int, dt::Real, nt::Int)
-    return (view(X, :, k+1:nt) - view(X, :, 1:nt-k)) / (k * dt)
+function init_euler_diff(X, t)
+    nvar, nt = size(X)
+    if length(t) != nt
+        error("Dimensions of data matrix and time vector must coincide.")
+    end
+    dXdt = zeros(eltype(X), nvar, nt)
+    T = ones(nvar) * t'
+    return nt, dXdt, T
+end
+
+function lagged_difference(X::Matrix, k::Int, nt::Int)
+    return (view(X, :, k+1:nt) - view(X, :, 1:nt-k))
 end
 
 """
@@ -143,13 +151,14 @@ n_bootstrap::Int; k_euler::Int = 1)
 
 Perform bootstrapping over [lianginfo_transfer](@ref).
 """
-function bootstrapped_lianginfo_transfer(X::Matrix, dt::Real,
+function bootstrapped_lianginfo_transfer(X::Matrix, t::AbstractVector,
     n_bootstrap::Int; k_euler::Int = 1)
 
     nvar, nt = size(X)
+    dt = mean(diff(t))
 
     # Compute time derivative of states
-    dXdt = forward_euler(X, k_euler, dt)
+    dXdt = forward_euler(X, t, k_euler)
 
     # Compute transfer information for original time series
     T, tau, R = lianginfo_transfer(X, dXdt, dt)
@@ -163,7 +172,7 @@ function bootstrapped_lianginfo_transfer(X::Matrix, dt::Real,
     sgen = [surrogenerator(X[i, :], RandomFourier(), Xoshiro(123)) for i in 1:nvar]
     @threads for l in 1:n_bootstrap
         X_bootstrap = Matrix(hcat([sgen[i]() for i in 1:nvar]...)')
-        dXdt_bootstrap = forward_euler(X_bootstrap, k_euler, dt)
+        dXdt_bootstrap = forward_euler(X_bootstrap, t, k_euler)
         T_, tau_, R_ = lianginfo_transfer(X_bootstrap, dXdt_bootstrap, dt)
         T_bootstrap[:, :, l] .= T_
         tau_bootstrap[:, :, l] .= tau_
