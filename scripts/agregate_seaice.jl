@@ -1,5 +1,16 @@
 include("intro.jl")
-using NCDatasets, CairoMakie, JLD2
+
+function latlon_seaice(; k=50)
+    
+    testfile1 = datadir("osisaf.met.no/reprocessed/ice/conc/v2p0/2001/01/" *
+        "ice_conc_sh_ease2-250_cdr-v2p0_200101011200.nc")
+    ds = NCDataset(testfile1)
+    lat = copy(ds["lat"][:][k:end-k+1, k:end-k+1])
+    lon = copy(ds["lon"][:][k:end-k+1, k:end-k+1])
+    close(ds)
+    jldsave(datadir("exp_pro/osisaf/latlon_k=$(k).jld2"),
+        lat = lat, lon = lon)
+end
 
 function agregate_seaice_monthly(; k = 50)
     testfile1 = datadir("osisaf.met.no/reprocessed/ice/conc/v2p0/1992/01/"
@@ -87,10 +98,38 @@ function anim_seaice(; k = 50)
     Colorbar(fig[1, 2], height = Relative(0.6), colorrange = crange, colormap = cmap,
         label = L"Sea-ice fraction (%) $\,$")
     contour!(ax, replace_missing(month_averaged_seaice[1], -1), levels = [-0.5])
-    record(fig, plotsdir("OSISAF/monthly_averaged_k=$k.mp4"), eachindex(timestrings), framerate = 10) do jj
+    record(fig, plotsdir("osisaf/monthly_averaged_k=$k.mp4"), eachindex(timestrings), framerate = 10) do jj
         j[] = jj
     end
 end
 
 # agregate_seaice_monthly()
-anim_seaice()
+# anim_seaice()
+
+
+# function mask_seaice(; k = 50)
+k = 50
+data = jldopen(datadir("exp_pro/osisaf/monthly_agregated_k=$(k).jld2"))
+timestrings = data["timestrings"]
+month_averaged_seaice = data["month_averaged_seaice"]
+latlon = jldopen(datadir("exp_pro/osisaf/latlon_k=$(k).jld2"))
+lat, lon = latlon["lat"], latlon["lon"]
+latlims = (-80, -60)
+lonlims = (-180, -60)
+mask = (latlims[1] .< lat .< latlims[2]) .& (lonlims[1] .< lon .< lonlims[2])
+fig, ax, hm = heatmap(month_averaged_seaice[1])
+contour!(ax, mask, levels = [0.5])
+fig
+
+X3D = cat(month_averaged_seaice..., dims=3)
+X, R, indices = reshape_without_missings(X3D, collect(eachindex(timestrings)), mask)
+# TODO: subtract seasonnality
+
+U, s, V = tsvd(R * R', 100)
+plot_realtive_pc(s, "osisaf/pc")
+
+pc1 = vec(U[:, 1]' * R)
+# eof1 = U[:, 1] .* V[:, 1]'
+nx, ny, nt = size(X3D)
+eof1 = reshape_eof(indices, U[:, 1], nx, ny)
+heatmap(eof1)

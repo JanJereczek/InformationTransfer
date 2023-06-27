@@ -2,32 +2,6 @@ include("intro.jl")
 include(srcdir("plotting.jl"))
 using NCDatasets, CairoMakie, TSVD, DelimitedFiles, Interpolations
 
-function reshape_without_missings(X3D::Array, t::Vector)
-    nx, ny, nt = size(X3D)
-    notmissing = sum(ismissing.(X3D), dims=3)[:, :, 1] .== 0
-    indices = CartesianIndices(notmissing)[notmissing]
-    X = zeros(length(indices), nt)
-    R = zeros(length(indices), nt)
-
-    for k in eachindex(indices)
-        i, j = Tuple(indices[k])
-        X[k, :] .= X3D[i, j, :]
-        R[k, :] .= X3D[i, j, :] - linregression(X3D[i, j, :], t)
-    end
-    return X, R, indices
-end
-
-function linregression(x::Vector, t::AbstractVector; lambda = 0.0)
-    TT = hcat(t, ones(length(t)))'
-    M = inv(TT * TT' + lambda .* LinearAlgebra.I(2) ) * TT
-    m, p = M*x
-    return m .* t .+ p
-end
-
-function pca(X::Matrix)
-    C = cov(X)
-end
-
 function load_aisgmb()
     # https://data1.geo.tu-dresden.de/ais_gmb/
     ds = Dataset(datadir("exp_raw/AIS_GMB_grid.nc"))
@@ -51,27 +25,23 @@ function anim_aisgmb(massbalance)
     end
 end
 
-function reshape_eof(indices::Vector, EOF::Vector, nx::Int, ny::Int)
-    X2D = Matrix{Union{Float64, Missing}}(fill(missing, nx, ny))
-    for k in eachindex(indices)
-        i, j = Tuple(indices[k])
-        X2D[i, j] = EOF[k]
-    end
-    return X2D
-end
-
 x, y, t, lat, lon, massbalance = load_aisgmb()
 nx, ny, nt = size(massbalance)
 anim_aisgmb(massbalance)
 X, R, indices = reshape_without_missings(massbalance, t)
 
 F = svd(R * R')
-relative_pc = F.S ./ sum(F.S)
-cumrelative_pc = cumsum(relative_pc)
-fig, ax, l = lines(relative_pc[1:100])
-lines!(ax, cumrelative_pc[1:100])
-save(plotsdir("wes_pc.png"), fig)
-save(plotsdir("wes_pc.pdf"), fig)
+
+plot_realtive_pc(F.S, "wes_svd_S")
+plot_realtive_pc(sqrt.(F.S), "wes_svd_sqrtS")
+
+
+# relative_pc = F.S ./ sum(F.S)
+# cumrelative_pc = cumsum(relative_pc)
+# fig, ax, l = lines(relative_pc[1:100])
+# lines!(ax, cumrelative_pc[1:100])
+# save(plotsdir("wes_pc.png"), fig)
+# save(plotsdir("wes_pc.pdf"), fig)
 
 pc1 = vec(F.U[:, 1]' * R)
 pc2 = vec(F.U[:, 2]' * R)

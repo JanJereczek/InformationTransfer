@@ -23,7 +23,7 @@ function agregate_oras(; variablename = "sohtc300", k = 250)
     toolvar = full_var[:, 1:k]
     stacked_var = [zeros(eltype(toolvar), size(toolvar)...) for t in timestrings]
 
-    for i_year in eachindex(yeardirs)[1:2]
+    for i_year in eachindex(yeardirs)
         files = readdir(yeardirs[i_year], join = true)
         for i_month in eachindex(files)
             j = (i_year-1)*12 + i_month
@@ -37,7 +37,7 @@ function agregate_oras(; variablename = "sohtc300", k = 250)
         longname = longname)
 end
 
-function anim_oras(; variablename = "sohtc300", k = 250)
+function anim_oras(; variablename = "sohtc300", k = 250, stride = 1)
     data = jldopen(datadir("exp_pro/oras5/$(variablename)_k=$k.jld2"))
     lat, lon, timestrings = data["lat"], data["lon"], data["timestrings"]
     var, units, longname = data["stacked_var"], data["units"], data["longname"]
@@ -62,14 +62,15 @@ function anim_oras(; variablename = "sohtc300", k = 250)
 
     text!(ga, 0.0, -90, text = observable_timestring, fontsize = ftsize)
     sf = surface!(ga, lon, lat, plotvar; shading = false, colormap = cmap,
-        colorrange = crange)
-    # Colorbar(fig[1, 2], sf, height = Relative(0.5), label = L"%$longname (%$units) $\,$")
+        colorrange = crange, lowclip = :transparent)
+    Colorbar(fig[1, 2], sf, height = Relative(0.5), label = L"%$longname (%$units) $\,$")
     # hidedecorations!(ga)
-    record(fig, plotsdir("ORAS/k=$k.mp4"), eachindex(timestrings), framerate = 10) do jj
+    record(fig, plotsdir("oras/$(variablename)_stride=$(stride)_k=$k.mp4"), 
+        eachindex(timestrings)[1:stride:end], framerate = 10) do jj
         j[] = jj
     end
     # fig
 end
 
-# agregate_oras()
-anim_oras()
+agregate_oras(variablename = "sohtc700")
+anim_oras(variablename = "sohtc700", stride = 1)
