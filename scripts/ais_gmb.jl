@@ -93,8 +93,8 @@ t_sam_full = yr_sam[1]:1/12:yr_sam[end]+11/12
 yr_enso = enso_full[:, 1]
 t_enso_full = yr_enso[1]:1/12:yr_enso[end]+11/12
 
-i1_sam = findfirst(t_sam .>= first(t))-1
-i1_enso = findfirst(t_enso .>= first(t))-1
+i1_sam = findfirst(t_sam_full .>= first(t))-1
+i1_enso = findfirst(t_enso_full .>= first(t))-1
 
 sam_trunc = sam_vec[i1_sam:end]
 enso_trunc = enso_vec[i1_enso:end]
