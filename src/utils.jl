@@ -1,15 +1,16 @@
 
-function replace_missing!(X::Matrix{Union{Missing, T}}, x::Real) where {T <: AbstractFloat}
+function replace_missing!(X::Array{Union{Missing, T}}, x::Real) where {T <: AbstractFloat}
     x = T(x)
     mask = ismissing.(X)
     X[mask] .= x
 end
 
+
 # function replace_missing!(X::Matrix{Union{Missing, T}}) where {T <: AbstractFloat}
 #     replace_missing_by_x!(X, 0)
 # end
 
-function replace_missing(X::Matrix{Union{Missing, T}}, x::Real) where {T <: AbstractFloat}
+function replace_missing(X::Array{Union{Missing, T}}, x::Real) where {T <: AbstractFloat}
     Y  = copy(X)
     replace_missing!(Y, x)
     return Y
@@ -73,11 +74,29 @@ function plot_realtive_pc(s::Vector, plotname::String)
     save(plotsdir("$plotname.pdf"), fig)
 end
 
-function reshape_eof(indices::Vector, EOF::Vector, nx::Int, ny::Int)
+function reshape_from_vec(indices::Vector, v::Vector, nx::Int, ny::Int)
     X2D = Matrix{Union{Float64, Missing}}(fill(missing, nx, ny))
     for k in eachindex(indices)
         i, j = Tuple(indices[k])
-        X2D[i, j] = EOF[k]
+        X2D[i, j] = v[k]
     end
     return X2D
+end
+
+function moving_average(X::Array{T, 3}, window_hw::Int) where {T<:Real}
+    Y = zeros(T, size(X)...)
+    for k in axes(X, 3)[window_hw+1:end-window_hw]
+        Y[:, :, k] .= sum(X[:, :, k-window_hw:k+window_hw-1], dims=3)
+    end
+    return Y
+end
+
+function moving_average(X::Matrix{T}, t::AbstractVector, window_hw::Int) where {T<:Real}
+    
+    tcrop = t[window_hw+1:end-window_hw]
+    Y = zeros(T, size(X,1), length(tcrop))
+    for k in axes(Y, 2)
+        Y[:, k] .= sum(X[:, k:k+2*window_hw-1], dims=2)
+    end
+    return Y, tcrop
 end

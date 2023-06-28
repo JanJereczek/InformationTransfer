@@ -48,8 +48,8 @@ pc2 = vec(F.U[:, 2]' * R)
 
 eof1 = F.U[:, 1] .* F.Vt[:, 1]
 
-eof1 = reshape_eof(indices, F.U[:, 1], nx, ny)
-eof2 = reshape_eof(indices, F.U[:, 2], nx, ny)
+eof1 = reshape_from_vec(indices, F.U[:, 1], nx, ny)
+eof2 = reshape_from_vec(indices, F.U[:, 2], nx, ny)
 
 sam_full = readdlm(datadir("exp_raw/sam_index.csv"), ',')
 enso_full = readdlm(datadir("exp_raw/enso34_index.csv"), ',')
