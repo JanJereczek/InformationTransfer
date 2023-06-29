@@ -106,15 +106,6 @@ end
 # agregate_seaice_monthly()
 # anim_seaice()
 
-function load_osisaf(k)
-    data = jldopen(datadir("exp_pro/osisaf/monthly_agregated_k=$(k).jld2"))
-    latlon = jldopen(datadir("exp_pro/osisaf/latlon_k=$(k).jld2"))
-    timestrings = data["timestrings"]
-    month_averaged_seaice = data["month_averaged_seaice"]
-    lat, lon = latlon["lat"], latlon["lon"]
-    return timestrings, month_averaged_seaice, lat, lon
-end
-
 function eof_seaice(; k = 50)
     timestrings, month_averaged_seaice, lat, lon = load_osisaf(k)
     latlims = (-80, -60)
