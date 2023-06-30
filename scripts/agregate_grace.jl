@@ -1,46 +1,32 @@
 include("intro.jl")
 
-function load_aisgmb()
-    # https://data1.geo.tu-dresden.de/ais_gmb/
-    ds = Dataset(datadir("exp_raw/AIS_GMB_grid.nc"))
-    x = copy(ds["x"][:])
-    y = copy(ds["y"][:])
-    t = copy(ds["time_dec"][:])
-    lat = copy(ds["lat"][:])
-    lon = copy(ds["lon"][:])
-    massbalance = copy(ds["dm"][:])
-    close(ds)
-    return x, y, t, lat, lon, massbalance
+function grace_eof(; interpolate = true)
+    x, y, t, lat, lon, massbalance = load_aisgmb()
+    nx, ny, nt = size(massbalance)
+
+    if interpolate
+        start_year = floor(t[1])
+        start_month = ceil(get_month_from_decimaltime(t[1]))
+        end_year = floor(t[end])
+        end_month = floor(get_month_from_decimaltime(t[end]))
+        t_even = collect(range( start_year + start_month/12, step = 1/12,
+            stop = end_year + end_month/12 ))
+
+        vecmassbalance = [massbalance[:, :, k] for k in axes(massbalance, 3)]
+        itp = linear_interpolation(t, vecmassbalance)
+        vecmassbalance_even = itp.(t_even)
+        massbalance_even = cat(vecmassbalance_even..., dims = 3)
+        anim_aisgmb(massbalance_even, filename = "AIS_GMB_even")
+    end
+
+    X, R, indices = reshape_without_missings(massbalance_even, t_even)
+    Y, tcrop = moving_average(R, t_even, 6)
+    U, s, V = tsvd(Y * Y', 100)
+    plot_realtive_pc(s, "pc_ais_smoothed")
+    return EOFresults(X, R, Y, "AIS mass balance", "kg/m2", s, U, t, indices, x, y, "none")
 end
 
-# function anim_aisgmb(massbalance; filename::String = "AIS_GMB")
-#     nt = size(massbalance, 3)
-#     k = Observable(1)
-#     plot_mbalance = @lift(massbalance[:, :, $k])
-#     fig, ax, hm = heatmap(plot_mbalance, colorrange = (-1000, 1000), colormap = :balance)
-#     record(fig, plotsdir("$filename.mp4"), 1:nt) do i
-#         k[] = i
-#     end
-# end
-
-x, y, t, lat, lon, massbalance = load_aisgmb()
-nx, ny, nt = size(massbalance)
-anim_aisgmb(massbalance)
-X, R, indices = reshape_without_missings(massbalance, t)
-
-F = svd(R * R')
-
-plot_realtive_pc(F.S, "wes_svd_S")
-plot_realtive_pc(sqrt.(F.S), "wes_svd_sqrtS")
-
-
-# relative_pc = F.S ./ sum(F.S)
-# cumrelative_pc = cumsum(relative_pc)
-# fig, ax, l = lines(relative_pc[1:100])
-# lines!(ax, cumrelative_pc[1:100])
-# save(plotsdir("wes_pc.png"), fig)
-# save(plotsdir("wes_pc.pdf"), fig)
-
+res = grace_eof()
 pc1 = vec(F.U[:, 1]' * R)
 pc2 = vec(F.U[:, 2]' * R)
 
@@ -49,17 +35,32 @@ eof1 = F.U[:, 1] .* F.Vt[:, 1]
 eof1 = reshape_from_vec(indices, F.U[:, 1], nx, ny)
 eof2 = reshape_from_vec(indices, F.U[:, 2], nx, ny)
 
-sam_full = readdlm(datadir("exp_raw/sam_index.csv"), ',')
-enso_full = readdlm(datadir("exp_raw/enso34_index.csv"), ',')
+function load_index(file::String)
+    if (file !== "sam_index") && (file !== "enso34_index")
+        error("Only accept sam_index and enso34_index as input.")
+    end
+    x_full = readdlm(datadir("exp_raw/$file.csv"), ',')
+    x_vec = vcat([x_full[i, 2:end] for i in axes(x_full, 1)]...)
+    yr = x_full[:, 1]
+    t = vec(["$i-$j" for j in 1:12, i in yr])
+    t = range(yr[1], step = 1/12, stop = yr[end]+11/12)
+    return t, x_vec
+end
 
-sam_vec = vcat([sam_full[i, 2:end] for i in axes(sam_full, 1)]...)
-enso_vec = vcat([enso_full[i, 2:end] for i in axes(enso_full, 1)]...)
+# sam_full = readdlm(datadir("exp_raw/sam_index.csv"), ',')
+# enso_full = readdlm(datadir("exp_raw/enso34_index.csv"), ',')
 
-yr_sam = sam_full[:, 1]
-t_sam_full = yr_sam[1]:1/12:yr_sam[end]+11/12
+# sam_vec = vcat([sam_full[i, 2:end] for i in axes(sam_full, 1)]...)
+# enso_vec = vcat([enso_full[i, 2:end] for i in axes(enso_full, 1)]...)
 
-yr_enso = enso_full[:, 1]
-t_enso_full = yr_enso[1]:1/12:yr_enso[end]+11/12
+# yr_sam = sam_full[:, 1]
+# t_sam_full = yr_sam[1]:1/12:yr_sam[end]+11/12
+
+# yr_enso = enso_full[:, 1]
+# t_enso_full = yr_enso[1]:1/12:yr_enso[end]+11/12
+
+t_sam_full, sam_vec = load_index("sam_index")
+t_enso_full, enso_vec = load_index("enso34_index")
 
 i1_sam = findfirst(t_sam_full .>= first(t))-1
 i1_enso = findfirst(t_enso_full .>= first(t))-1
