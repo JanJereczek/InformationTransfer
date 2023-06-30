@@ -21,7 +21,7 @@ function reshape_without_missings(X3D::Array, t::Vector; q::Real = 1)
 end
 
 function reshape_without_missings(X3D::Array{Union{Missing, T}},
-    t::Vector, mask::Matrix{Bool}, q::Real) where {T<:AbstractFloat}
+    t::Vector, mask::BitMatrix, q::Real) where {T<:AbstractFloat}
     nx, ny, nt = size(X3D)
     notmissing = sum(ismissing.(X3D), dims=3)[:, :, 1] .== 0
     valid = mask .& notmissing
@@ -63,6 +63,8 @@ end
 function randomprune_indices(x::Vector, q::Real)
     return rand(length(x)) .<= q
 end
+
+get_month_from_decimaltime(t::AbstractFloat) = (t - floor(t)) * 12
 
 #######################################################
 # Filtering
@@ -164,7 +166,6 @@ end
 acc_mask = (name = "ACC", latlims = (-62, -58), lonlims = (-140, -60))
 amundsen_mask = (name = "Amundsen", latlims = (-90, -60), lonlims = (-140, -60))
 polynia_mask = (name = "Polynia", latlims = (-80, -70), lonlims = (-140, -60))
-katabatic_mask = (name = "Polynia", latlims = (-90, -70), lonlims = (-140, -60))
 
 #######################################################
 # Structs

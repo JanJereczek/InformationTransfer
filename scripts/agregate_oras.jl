@@ -184,7 +184,7 @@ plot_data_bool = false
 compute_eof_bool = true
 plot_eof_spatiotemporal_bool = true
 plot_eof_weights_bool = true
-for variable in VARIABLENAMES[7:8]
+for variable in VARIABLENAMES[end:end]
     agregate_data_bool ? agregate_oras(variablename = variable) : nothing
     plot_data_bool ? anim_oras(variablename = variable, stride = 3) : nothing
     compute_eof_bool ? eof_oras_ocean(variable) : nothing
