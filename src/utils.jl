@@ -14,14 +14,14 @@ function replace_missing!(X::Array{Union{Missing, T}}, x::Real) where {T<:Abstra
     X[mask] .= x
 end
 
-function reshape_without_missings(X3D::Array, t::Vector, q::AbstractFloat)
+function reshape_without_missings(X3D::Array, t::Vector; q::Real = 1)
     nx, ny, nt = size(X3D)
-    mask = fill(true, nx, ny)
+    mask = BitMatrix(fill(true, nx, ny))
     return reshape_without_missings(X3D, t, mask, q)
 end
 
 function reshape_without_missings(X3D::Array{Union{Missing, T}},
-    t::Vector, mask::BitMatrix, q::AbstractFloat) where {T<:AbstractFloat}
+    t::Vector, mask::Matrix{Bool}, q::Real) where {T<:AbstractFloat}
     nx, ny, nt = size(X3D)
     notmissing = sum(ismissing.(X3D), dims=3)[:, :, 1] .== 0
     valid = mask .& notmissing
@@ -60,7 +60,7 @@ function recover_lonlat_from_indices(lon::Matrix, lat::Matrix, indices::Vector{C
     return lonvec, latvec
 end
 
-function randomprune_indices(x::Vector, q)
+function randomprune_indices(x::Vector, q::Real)
     return rand(length(x)) .<= q
 end
 
@@ -78,7 +78,7 @@ end
 function moving_average(X::Array{T, 3}, window_hw::Int) where {T<:Real}
     Y = zeros(T, size(X)...)
     for k in axes(X, 3)[window_hw+1:end-window_hw]
-        Y[:, :, k] .= sum(X[:, :, k-window_hw:k+window_hw-1], dims=3)
+        Y[:, :, k] .= mean(X[:, :, k-window_hw:k+window_hw-1], dims=3)
     end
     return Y
 end
@@ -88,7 +88,7 @@ function moving_average(X::Matrix{T}, t::AbstractVector, window_hw::Int) where {
     tcrop = t[window_hw+1:end-window_hw]
     Y = zeros(T, size(X,1), length(tcrop))
     for k in axes(Y, 2)
-        Y[:, k] .= sum(X[:, k:k+2*window_hw-1], dims=2)
+        Y[:, k] .= mean(X[:, k:k+2*window_hw-1], dims=2)
     end
     return Y, tcrop
 end
@@ -123,6 +123,19 @@ end
 #######################################################
 # Data loading
 #######################################################
+
+function load_aisgmb()
+    # https://data1.geo.tu-dresden.de/ais_gmb/
+    ds = Dataset(datadir("exp_raw/AIS_GMB_grid.nc"))
+    x = copy(ds["x"][:])
+    y = copy(ds["y"][:])
+    t = copy(ds["time_dec"][:])
+    lat = copy(ds["lat"][:])
+    lon = copy(ds["lon"][:])
+    massbalance = copy(ds["dm"][:])
+    close(ds)
+    return x, y, t, lat, lon, massbalance
+end
 
 function load_oras(variablename::String, k::Int)
     data = jldopen(datadir("exp_pro/oras5/$(variablename)_k=$k.jld2"))

@@ -36,13 +36,13 @@ end
 Backward-Euler differentiation with spacing `k` and assuming that `X` has dimension
 `nvar x nt`.
 """
-function backward_euler(X::Matrix, t::Vector, k::Int)
+function backward_euler(X::Matrix, t::AbstractVector, k::Int)
     nt, dXdt, T = init_euler_diff(X, t)
     dXdt[:, k:nt] .= lagged_difference(X, k, nt) ./ lagged_difference(T, k, nt)
     return dXdt
 end
 
-function init_euler_diff(X, t)
+function init_euler_diff(X::Matrix, t::AbstractVector)
     nvar, nt = size(X)
     if length(t) != nt
         error("Dimensions of data matrix and time vector must coincide.")

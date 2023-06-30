@@ -1,19 +1,5 @@
 include("intro.jl")
 include(srcdir("plotting.jl"))
-using NCDatasets, CairoMakie, TSVD, DelimitedFiles, Interpolations
-
-function load_aisgmb()
-    # https://data1.geo.tu-dresden.de/ais_gmb/
-    ds = Dataset(datadir("exp_raw/AIS_GMB_grid.nc"))
-    x = copy(ds["x"][:])
-    y = copy(ds["y"][:])
-    t = copy(ds["time_dec"][:])
-    lat = copy(ds["lat"][:])
-    lon = copy(ds["lon"][:])
-    massbalance = copy(ds["dm"][:])
-    close(ds)
-    return x, y, t, lat, lon, massbalance
-end
 
 function anim_aisgmb(massbalance)
     nt = size(massbalance, 3)
