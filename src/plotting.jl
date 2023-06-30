@@ -66,3 +66,22 @@ function plot_infotransfer!(ax, M::Matrix, S::Matrix, vars::Vector, opts::NamedT
 
     ax.yreversed = true
 end
+
+function anim_aisgmb(massbalance; filename::String = "AIS_GMB")
+    nt = size(massbalance, 3)
+    maxabs = maximum(abs.(skipmissing(massbalance)))
+    crange = (-maxabs, maxabs)
+    cmap = cgrad(:balance, rev = true)
+    fig = Figure(resolution = (1300, 900), fontsize = 30)
+    ax = Axis(fig[1, 1], aspect = DataAspect())
+    hidedecorations!(ax)
+    Colorbar(fig[1, 2], height = Relative(0.5), colormap = cmap,
+        colorrange = crange, label = L"Mass balance $\mathrm{kg \, m^{-2}}$")
+
+    k = Observable(1)
+    plot_mbalance = @lift(massbalance[:, :, $k])
+    heatmap!(ax, plot_mbalance, colorrange = crange, colormap = cmap, lowclip = :transparent)
+    record(fig, "plots/$filename.mp4", 1:nt) do i
+        k[] = i
+    end
+end
